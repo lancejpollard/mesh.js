@@ -191,3 +191,71 @@ Should probably use a [two-phase commit](https://dropbox.tech/infrastructure/cro
 
 Every few records inserted, it checks the database size to see if it is close to MAX in size. Once it is close to MAX in size, it spawns off another shard.
 
+## Select Query API
+
+```js
+{
+  type: {
+    order: {
+      descending: ['title', 'name']
+    }
+  }
+}
+
+{
+  org: {
+    filter: {
+      age: {
+        between: {
+          min: 20,
+          max: 30
+        }
+      }
+    },
+    children: {
+      title: true,
+
+    }
+  }
+}
+
+{
+  org: {
+    filter: {
+      id: 1
+    },
+    children: {
+      title: true,
+
+    }
+  }
+}
+
+{
+  org: {
+    filter: {
+      id: {
+        in: [1, 2]
+      }
+    },
+    children: {
+      title: true,
+
+    }
+  }
+}
+
+{
+  org: {
+    filter: {
+      id: {
+        not: null
+      }
+    },
+    children: {
+      title: true,
+
+    }
+  }
+}
+```
