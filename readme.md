@@ -51,6 +51,21 @@ const { type } = await weave.select({
 })
 ```
 
+Note, when you get back an array from `select`, you also get back a `totalCount`, so you know how many records there are. Here is an example response:
+
+```js
+{
+  totalCount: 10000,
+  list: [
+    { name: 'type' },
+    { name: 'organization' },
+    { name: 'agent' },
+    { name: 'user' },
+    ...
+  ]
+}
+```
+
 #### Filter `between`
 
 ```js
@@ -112,7 +127,7 @@ const { person } = await weave.select({
 ```js
 const { type } = await weave.select({
   type: {
-    order: {
+    sort: {
       descending: ['name']
     },
     select: {
@@ -122,12 +137,13 @@ const { type } = await weave.select({
 })
 ```
 
-#### Limit
+#### Pagination
 
 ```js
 const { person } = await weave.select({
   person: {
-    limit: 100,
+    max: 100,
+    offset: 1000,
     select: {
       name: true
     }
@@ -140,16 +156,30 @@ const { person } = await weave.select({
 Create a record.
 
 ```js
-const org = await weave.create({
+const { prime } = await weave.create({
   prime: [orgId, typeId],
   slug: 'foo',
   title: 'Foo',
 })
 ```
 
+You can also specify what fields to get back.
+
+```js
+const org = await weave.create({
+  prime: [orgId, typeId],
+  slug: 'foo',
+  title: 'Foo',
+}, {
+  prime: true,
+  slug: true,
+  title: true
+})
+```
+
 ### `weave.create(list)`
 
-You can also create many records at a time.
+You can create many records at a time.
 
 ### `weave.update()`
 
@@ -178,11 +208,17 @@ await weave.commit(async () => {
 
 Get list of shards and database table metadata of the system, to aid in the debugging process.
 
-### `weave.remove({ id })`
+### `weave.remove({ prime })`
 
 Remove record by ID.
 
-### `weave.remove([ { id }, ..., { id } ])`
+```js
+await weave.remove({
+  prime: [orgId, typeId, objId, chunkId]
+})
+```
+
+### `weave.remove([ { prime }, ..., { prime } ])`
 
 Remove many records at once.
 
