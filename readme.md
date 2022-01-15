@@ -151,7 +151,7 @@ const { person } = await weave.select({
 })
 ```
 
-### `weave.create(record)`
+### `weave.create(record, [projection])`
 
 Create a record.
 
@@ -177,11 +177,11 @@ const org = await weave.create({
 })
 ```
 
-### `weave.create(list)`
+### `weave.create(list, [projection])`
 
 You can create many records at a time.
 
-### `weave.update()`
+### `weave.update(query, updates, [projection])`
 
 ```js
 await weave.update({
@@ -208,7 +208,7 @@ await weave.commit(async () => {
 
 Get list of shards and database table metadata of the system, to aid in the debugging process.
 
-### `weave.remove({ prime })`
+### `weave.remove({ prime }, [projection])`
 
 Remove record by ID.
 
@@ -218,7 +218,7 @@ await weave.remove({
 })
 ```
 
-### `weave.remove([ { prime }, ..., { prime } ])`
+### `weave.remove(list, [projection])`
 
 Remove many records at once.
 
