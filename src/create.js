@@ -145,11 +145,39 @@ async function createTypeTypeRecord(knex) {
     idSalt: 0,
   })
 
+  const [typeObjectId] = await reserveIdList(knex, {
+    organizationId: 0, // main app organization
+    typeId: TYPE_ID.type // type: 'type'
+  })
+
+  // create type type.name
+  await createStringValueRecord(knex, {
+    organizationId: 0,
+    typeId: 0,
+    objectId: typeObjectId,
+    propertyId: PROPERTY_ID.property.name, // name property on type
+    value: 'type'
+  })
+
   // create property id
   await createChunkShardRecord(knex, {
     organizationId: 0,
     typeId: TYPE_ID.property,
     idSalt: 0,
+  })
+
+  const [propertyObjectId] = await reserveIdList(knex, {
+    organizationId: 0, // main app organization
+    typeId: TYPE_ID.type // type: 'type'
+  })
+
+  // create type type.name
+  await createStringValueRecord(knex, {
+    organizationId: 0,
+    typeId: 0,
+    objectId: propertyObjectId,
+    propertyId: PROPERTY_ID.property.name, // name property on type
+    value: 'property'
   })
 
   // create type properties
@@ -524,7 +552,7 @@ async function createObjectBindingRecord(knex, {
 async function createType(knex, { name, properties = [] }) {
   const [objectId] = await reserveIdList(knex, {
     organizationId: 0, // main app organization
-    typeId: 0 // type: 'type'
+    typeId: TYPE_ID.type // type: 'type'
   })
 
   await createChunkShardRecord(knex, {
@@ -555,14 +583,14 @@ async function createEachTypePropertyRecord(knex, {
   for (let i = 0, n = properties.length; i < n; i++) {
     const propertyAttributeSet = properties[i]
     await createTypePropertyRecord(knex, {
-      objectId,
+      typeId: objectId,
       ...propertyAttributeSet
     })
   }
 }
 
 async function createTypePropertyRecord(knex, {
-  objectId,
+  typeId,
   name,
   propertyTypes = [],
   isList = false,
@@ -571,10 +599,15 @@ async function createTypePropertyRecord(knex, {
   description,
   examples,
 }) {
+  const [objectId] = await reserveIdList(knex, {
+    organizationId: 0, // main app organization
+    typeId: TYPE_ID.property // type: 'type'
+  })
+
   // create property.name
   await createStringValueRecord(knex, {
     organizationId: 0,
-    typeId: TYPE_ID.type,
+    typeId: TYPE_ID.property,
     objectId,
     propertyId: PROPERTY_ID.type.name,
     value: name,

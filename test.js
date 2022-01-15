@@ -4,18 +4,19 @@ const attach = require('./src')
 test()
 
 async function test() {
-  const graph = await attach({
+  const weave = await attach({
     url: `postgresql://localhost:5432/postgres_graphql_test`
   })
 
   try {
-    await graph.create({
+    await weave.create({
       type: 'schema'
     })
+    console.log(weave.schema)
   } catch (e) {
 
   } finally {
-    // await graph.revoke()
-    await graph.detach()
+    await weave.revoke()
+    await weave.detach()
   }
 }

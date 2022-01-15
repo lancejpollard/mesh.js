@@ -3,6 +3,8 @@
 
 A layer above a network of Postgres shards for dealing with records modeled as graph objects.
 
+NOT WORKING YET, still just in concept phase.
+
 ## Usage
 
 ```

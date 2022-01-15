@@ -17,6 +17,7 @@ const {
 } = require('./remove')
 const {
   selectFromRecordTable,
+  selectEveryType,
 } = require('./select')
 
 // - create central table
@@ -54,6 +55,7 @@ class Prime {
     await connect(this.shards[0])
     await ensureCenter(this.shards[0])
     await ensureBaseSchema(this.shards[0])
+    this.schema = await selectEveryType(this.shards[0])
     // this.server = await listen()
     log('attached db')
   }
