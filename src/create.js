@@ -1,6 +1,9 @@
 
 const CONFIG = require('./config')
 const reserveIdList = require('./id')
+const {
+  randomBetween: randomBigIntegerBetween,
+} = require('./biginteger')
 
 const PROPERTY_TABLE_CREATOR = {
   attachment: createAttachmentValueTable,
@@ -24,6 +27,27 @@ const PROPERTY_RECORD_CREATOR = {
   timestamp: createTimestampValueRecord,
   property_binding: createPropertyBindingRecord,
   object_binding: createObjectBindingRecord,
+}
+
+const TYPE_ID = {
+  type: 0,
+  property: 1,
+}
+
+const PROPERTY_ID = {
+  type: {
+    name: 0,
+    properties: 1,
+  },
+  property: {
+    name: 2,
+    propertyTypes: 3,
+    isList: 4,
+    defaultValue: 5,
+    title: 6,
+    description: 7,
+    examples: 8,
+  }
 }
 
 /**
@@ -55,12 +79,38 @@ async function createChunkShardTable(knex) {
   await knex.schema.createTable(CONFIG.CHUNK_SHARD_TABLE_NAME, t => {
     t.biginteger('organization_id').notNull()
     t.integer('type_id').notNull()
-    t.biginteger('chunk_id').notNull()
+    t.biginteger('chunk_id').notNull().defaultTo(0)
     t.string('shard_url')
     t.boolean('current').defaultTo(true).notNull()
     t.biginteger('last_index').defaultTo(0).notNull()
     t.biginteger('id_salt').defaultTo(0).notNull()
   })
+}
+
+async function createChunkShardRecord(knex, {
+  organizationId,
+  typeId,
+  chunkId = 0,
+  shardUrl = null,
+  idSalt
+}) {
+  const salt = String(
+    isNaN(idSalt)
+      ? randomBigIntegerBetween(0n, 9223372036854775807n)
+      : idSalt
+  )
+
+  const record = await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
+    .insert({
+      organization_id: organizationId,
+      type_id: typeId,
+      chunk_id: chunkId,
+      shard_url: shardUrl,
+      id_salt: salt,
+    })
+    .select('last_index')
+
+  console.log(record)
 }
 
 /**
@@ -88,10 +138,65 @@ async function createInitialOrganizationRecord(knex) {
  */
 
 async function createTypeTypeRecord(knex) {
-  await createPropertyRecord()
+  await createChunkShardRecord(knex, {
+    organizationId: 0,
+    typeId: 0,
+  })
+  await createType(knex, {
+    name: 'type',
+    properties: [
+      {
+        name: 'name',
+        propertyTypes: ['string'],
+      },
+      {
+        name: 'properties',
+        propertyTypes: ['property'],
+        isArray: true
+      }
+    ]
+  })
 }
 
-async function createPropertyRecord(knex, { type, value }) {
+async function createTypeAgentRecord(knex) {
+  await createType(knex, {
+    name: 'agent',
+    properties: [
+
+    ]
+  })
+}
+
+/**
+ * Create organization.
+ *
+ * - slug
+ * - title
+ * - image
+ * - logo
+ */
+
+async function createTypeOrganizationRecord(knex) {
+  await createType(knex, {
+    name: 'organization',
+    properties: [
+      {
+        name: 'slug',
+        propertyTypes: ['string'],
+      },
+      {
+        name: 'title',
+        propertyTypes: ['text'],
+      },
+      {
+        name: 'image',
+        propertyTypes: ['object_binding'],
+      },
+    ]
+  })
+}
+
+async function createPropertyRecord(knex) {
   const create = PROPERTY_RECORD_CREATOR[type]
   await create(knex, { value })
 }
@@ -378,40 +483,78 @@ async function createObjectBindingRecord(knex, {
 }
 
 async function createType(knex, { name, properties = [] }) {
-  const id = await reserveIdList({
-    organizationId: 0,
-    typeId: 0
+  const objectId = await reserveIdList(knex, {
+    organizationId: 0, // main app organization
+    typeId: 0 // type: 'type'
   })
 
-  await createEachProperty(knex, { objectId: id, properties })
-  // for each property, create:
-  // - name (string)
-  // - propertyType
-  // - isArray: boolean
-  // - title
-  // - description
-  // - examples
-  await createStringValue()
-  // knex('string').insert({
-  //   org_id: 0,
-  //   type_id: 0, // type
-  //   object_id: increment (it is a new type)
-  //   property: increment // relative to org/type/chunk
-  //   value
-  // })
+  await createChunkShardRecord(knex, {
+    organizationId: 0,
+    typeId: objectId,
+  })
+
+  // create type.name
+  await createStringValueRecord(knex, {
+    organizationId: 0,
+    typeId: 0,
+    objectId,
+    propertyId: PROPERTY_ID.property.name, // name property on type
+    value: name
+  })
+
+  // create type.properties
+  await createEachTypePropertyRecord(knex, { objectId, properties })
+
+  // create type.title
+  // create type.description
 }
 
-async function createEachProperty(knex, {
+async function createEachTypePropertyRecord(knex, {
   objectId,
   properties
 }) {
   for (let i = 0, n = properties.length; i < n; i++) {
     const propertyAttributeSet = properties[i]
-    await createPropertyRecord(knex, {
+    await createTypePropertyRecord(knex, {
       objectId,
       ...propertyAttributeSet
     })
   }
+}
+
+async function createTypePropertyRecord(knex, {
+  objectId,
+  name,
+  propertyTypes = [],
+  isList = false,
+  defaultValue,
+  title,
+  description,
+  examples,
+}) {
+  // create property.name
+  await createStringValueRecord(knex, {
+    organizationId: 0,
+    typeId: TYPE_ID.type,
+    objectId,
+    propertyId: PROPERTY_ID.type.name,
+    value: name,
+  })
+
+  // create property.propertyTypes
+  // for each property type
+  for (let i = 0, n = propertyTypes.length; i < n; i++) {
+    let propertyType = propertyTypes[i]
+  }
+
+  // create property.isList
+  await createBooleanValueRecord(knex, {
+    organizationId: 0,
+    typeId: TYPE_ID.type,
+    objectId,
+    propertyId: PROPERTY_ID.type.isList,
+    value: isList,
+  })
 }
 
 module.exports = {
@@ -420,4 +563,5 @@ module.exports = {
   createChunkShardShardTable,
   createChunkShardTable,
   createInitialChunkShardShardRecord,
+  createTypeTypeRecord,
 }

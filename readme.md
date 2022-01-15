@@ -132,6 +132,15 @@ smallinteger
   - type (flag, agreement, disagreement)
   - action-id
   - action-shard
+- image: 10 (object which references several paths for different sizes, and a preview blur hash, as well as the sizes)
+  - preview_url (base64 data)
+  - sources
+    - width
+    - height
+    - size
+    - attachment
+      - bucket_id
+      - value_hash
 
 ## Algorithms
 
