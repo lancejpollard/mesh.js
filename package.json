@@ -4,6 +4,7 @@
   "dependencies": {
     "@lancejpollard/configured-quadratic-residue-prng.js": "^1.0.0",
     "knex": "^0.95.15",
+    "lodash": "^4.17.21",
     "pg": "^8.7.1"
   },
   "main": "src/index.js"

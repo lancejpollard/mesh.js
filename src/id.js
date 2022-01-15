@@ -11,6 +11,11 @@ LIMIT 1
 FOR UPDATE;
 `
 
+const OFFSET = {
+  16: -2147483648n,
+  32: -9223372036854775808n
+}
+
 async function reserve(knex, { count = 1n, organizationId, typeId }) {
   const result = await knex.raw(SELECT_FOR_UPDATE, {
     organizationId,
@@ -22,6 +27,8 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
   const idSalt = BigInt(record.id_salt)
   const nextId = lastId + count
   const idSize = record.id_size * 4
+
+  console.log(idSize)
 
   await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
     .update({
@@ -39,9 +46,10 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
   let i = 0n
   while (i < diff) {
     const baseId = lastId + i
-    array[i] = usePermutation
+    const value = usePermutation
       ? permute(baseId, idSalt, idSize)
       : baseId
+    array[i] = value + OFFSET[idSize]
     i++
   }
 
