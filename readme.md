@@ -51,6 +51,90 @@ const { type } = await weave.select({
 })
 ```
 
+#### Filter `between`
+
+```js
+const { person } = await weave.select({
+  person: {
+    filter: {
+      age: {
+        between: {
+          min: 20,
+          max: 30
+        }
+      }
+    },
+    select: {
+      name: true
+    }
+  }
+})
+```
+
+#### Filter `in`
+
+```js
+const { person } = await weave.select({
+  person: {
+    filter: {
+      id: {
+        in: [1, 2, 3]
+      }
+    },
+    select: {
+      name: true
+    }
+  }
+})
+```
+
+#### Filter `not`
+
+```js
+const { person } = await weave.select({
+  person: {
+    filter: {
+      id: {
+        not: {
+          in: [1, 2, 3]
+        }
+      }
+    },
+    select: {
+      name: true
+    }
+  }
+})
+```
+
+#### Sort
+
+```js
+const { type } = await weave.select({
+  type: {
+    order: {
+      descending: ['name']
+    },
+    select: {
+      name: true
+    }
+  }
+})
+```
+
+#### Limit
+
+```js
+const { person } = await weave.select({
+  person: {
+    limit: 100,
+    select: {
+      name: true
+    }
+  }
+})
+```
+
 ### `weave.create(record)`
 
 Create a record.
@@ -246,72 +330,3 @@ You have to have permission to edit the organization or specific records within 
 ### Insertion
 
 Every few records inserted, it checks the database size to see if it is close to MAX in size. Once it is close to MAX in size, it spawns off another shard.
-
-## Select Query API
-
-```js
-{
-  type: {
-    order: {
-      descending: ['title', 'name']
-    }
-  }
-}
-
-{
-  org: {
-    filter: {
-      age: {
-        between: {
-          min: 20,
-          max: 30
-        }
-      }
-    },
-    children: {
-      title: true,
-
-    }
-  }
-}
-
-{
-  org: {
-    filter: {
-      id: 1
-    },
-    children: {
-      title: true,
-
-    }
-  }
-}
-
-{
-  org: {
-    filter: {
-      id: {
-        in: [1, 2]
-      }
-    },
-    children: {
-      title: true,
-
-    }
-  }
-}
-
-{
-  org: {
-    filter: {
-      id: {
-        not: null
-      }
-    },
-    children: {
-      title: true,
-
-    }
-  }
-}
-```
