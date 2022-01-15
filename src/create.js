@@ -596,6 +596,14 @@ async function createTypePropertyRecord(knex, {
   })
 }
 
+async function createRecord() {
+
+}
+
+async function createRecordList() {
+
+}
+
 module.exports = {
   PROPERTY_TABLE_CREATOR,
   PROPERTY_RECORD_CREATOR,
@@ -604,4 +612,6 @@ module.exports = {
   createInitialChunkShardShardRecord,
   createTypeTypeRecord,
   createTypeOrganizationRecord,
+  createRecord,
+  createRecordList,
 }

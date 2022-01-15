@@ -1,28 +1,34 @@
 
-# Prime.js
+# Weave.js
 
 A layer above a network of Postgres shards for dealing with records modeled as graph objects.
 
 ## Usage
 
 ```
-npm install @lancejpollard/prime.js
+npm install @lancejpollard/weave.js
 ```
 
 ### `attach({ url })`
 
 ```js
-const attach = require('@lancejpollard/prime.js')
+const attach = require('@lancejpollard/weave.js')
 
-const prime = await attach({
+const weave = await attach({
   url: `postgresql://localhost:5432/postgres_graphql_test`
 })
 ```
 
-### `prime.select(query)`
+Debug knex queries (which is used under the hood), by doing:
+
+```bash
+DEBUG=knex:query,knex:tx,knex:bindings node your-script
+```
+
+### `weave.select(query)`
 
 ```js
-const { type } = await prime.select({
+const { type } = await weave.select({
   type: {
     single: true,
     filter: {
@@ -45,24 +51,26 @@ const { type } = await prime.select({
 })
 ```
 
-### `prime.create(record)`
+### `weave.create(record)`
+
+Create a record.
 
 ```js
-const org = await prime.create({
+const org = await weave.create({
   prime: [orgId, typeId],
   slug: 'foo',
   title: 'Foo',
 })
 ```
 
-### `prime.create(list)`
+### `weave.create(list)`
 
 You can also create many records at a time.
 
-### `prime.update()`
+### `weave.update()`
 
 ```js
-await prime.update({
+await weave.update({
   prime: [orgId, typeId, objectId, chunkId],
 }, {
   slug: 'bar',
@@ -73,30 +81,34 @@ await prime.update({
 })
 ```
 
-### `prime.commit(fn)`
+### `weave.commit(fn)`
 
 ```js
-await prime.commit(async () => {
-  prime.create(...)
-  prime.update(...)
+await weave.commit(async () => {
+  weave.create(...)
+  weave.update(...)
 })
 ```
 
-### `prime.survey()`
+### `weave.survey()`
 
 Get list of shards and database table metadata of the system, to aid in the debugging process.
 
-### `prime.remove({ id })`
+### `weave.remove({ id })`
 
 Remove record by ID.
 
-### `prime.remove([ { id }, ..., { id } ])`
+### `weave.remove([ { id }, ..., { id } ])`
 
 Remove many records at once.
 
-### `prime.revoke()`
+### `weave.revoke()`
 
-Remove the whole database system, be careful. Useful for testing prime during development.
+Remove the whole database system, be careful. Useful for testing weave during development.
+
+### `weave.detach()`
+
+Turn off the database connections.
 
 ## Architecture
 
@@ -222,6 +234,10 @@ smallinteger
 ## Algorithms
 
 Should probably use a [two-phase commit](https://dropbox.tech/infrastructure/cross-shard-transactions-at-10-million-requests-per-second) to do transactions.
+
+Pagination/sorting requires [3 passes](https://engineering.medallia.com/blog/posts/sorting-and-paging-on-distributed-data/) potentially.
+
+All of the schema data is contained in the primary node.
 
 ### Security
 

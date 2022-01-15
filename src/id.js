@@ -21,6 +21,7 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
   const lastId = BigInt(record.last_index)
   const idSalt = BigInt(record.id_salt)
   const nextId = lastId + count
+  const idSize = record.id_size * 4
 
   await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
     .update({
@@ -38,7 +39,9 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
   let i = 0n
   while (i < diff) {
     const baseId = lastId + i
-    array[i] = usePermutation ? permute(baseId, idSalt, ) : baseId
+    array[i] = usePermutation
+      ? permute(baseId, idSalt, idSize)
+      : baseId
     i++
   }
 

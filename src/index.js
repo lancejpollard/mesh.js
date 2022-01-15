@@ -1,33 +1,52 @@
 
 const knex = require('knex')
 const {
+  createTCPServer,
+} = require('./net')
+const {
   ensureCenter,
   ensureBaseSchema,
 } = require('./ensure')
 const {
+  createRecord,
+  createRecordList,
+} = require('./create')
+const {
   revokeCenter,
   revokeEachPropertyTable,
 } = require('./remove')
+const {
+  selectFromRecordTable,
+} = require('./select')
 
 // - create central table
 // - layer to create new object table
 // - layer to create new property value table
 // - layer to find the appropriate shard to write to
-// - layer for querying across shards (graphql like requests)
+// - layer for querying across shards (primeql like requests)
 // - layer for inserting records (across multiple shards)
 // - function for creating a new schema (private function)
-// - function for running a "migration" on graphical schema.
+// - function for running a "migration" on primeical schema.
 // - layer for connecting to all available shards (with connection pooling)
 
-class Graph {
+class Prime {
   constructor({
     url,
     maxSizeOfEachDatabaseInstance = 1024 ** 4, // 1TB
-  }) {
+    base = true, // if it's the base node.
+  } = {}) {
     this.name = url.split('/').pop()
     this.maxSizeOfEachDatabaseInstance = Math.floor(Math.max(1024 ** 3, maxSizeOfEachDatabaseInstance))
     this.databaseSizeCheckThreshold = Math.floor(this.maxSizeOfEachDatabaseInstance / (1024 ** 2))
-    this.shards = [construct(url)]
+    this.isBase = base
+
+    const baseConnection = construct(url)
+    this.connection = {
+      base: baseConnection,
+      hook: [baseConnection],
+      host: [baseConnection]
+    }
+    this.shards = [baseConnection]
   }
 
   async attach() {
@@ -35,22 +54,27 @@ class Graph {
     await connect(this.shards[0])
     await ensureCenter(this.shards[0])
     await ensureBaseSchema(this.shards[0])
+    // this.server = await listen()
     log('attached db')
   }
 
-  async create(list, { explain } = {}) {
+  async create(input) {
+    if (Array.isArray(input)) {
+      return await createRecordList(input)
+    } else {
+      return await createRecord(input)
+    }
+  }
+
+  async update(input) {
 
   }
 
-  async update(list, { explain } = {}) {
-
+  async select(query) {
+    return await selectFromRecordTable(this.shards, query)
   }
 
-  async select(query, { explain } = {}) {
-
-  }
-
-  async remove(list, { explain } = {}) {
+  async remove(input) {
 
   }
 
@@ -103,6 +127,14 @@ class Graph {
   }
 }
 
+/**
+ * Listen for TCP info.
+ */
+
+async function listen({ port, ip } = {}) {
+  return await createTCPServer({ port, ip })
+}
+
 function bucketChunkShard({
   organizationId,
   typeId,
@@ -121,9 +153,9 @@ async function selectTableSize(knex, name) {
 }
 
 async function attach(config) {
-  const graph = new Graph(config)
-  await graph.attach()
-  return graph
+  const prime = new Prime(config)
+  await prime.attach()
+  return prime
 }
 
 async function createDatabase(knex) {
@@ -138,7 +170,7 @@ async function removeDatabase(knex) {
   await knex.raw('DROP DATABASE DB_NAME;')
 }
 
-async function revokeEachShard(graph) {
+async function revokeEachShard(prime) {
 
 }
 
