@@ -2,7 +2,7 @@
 const knex = require('knex')
 const {
   ensureCenter,
-  ensureBaseSchemaSet,
+  ensureBaseSchema,
 } = require('./ensure')
 const {
   revokeCenter,
@@ -33,23 +33,23 @@ class Graph {
     log('attaching db')
     await connect(this.shards[0])
     await ensureCenter(this.shards[0])
-    await ensureBaseSchemaSet(this.shards[0])
+    await ensureBaseSchema(this.shards[0])
     log('attached db')
   }
 
-  async create(list) {
+  async create(list, { explain } = {}) {
 
   }
 
-  async update(list) {
+  async update(list, { explain } = {}) {
 
   }
 
-  async select(query) {
+  async select(query, { explain } = {}) {
 
   }
 
-  async remove(list) {
+  async remove(list, { explain } = {}) {
 
   }
 

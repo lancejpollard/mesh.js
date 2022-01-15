@@ -1,5 +1,5 @@
 {
-  "name": "@lancejpollard/postgres-graphdb.js",
+  "name": "@lancejpollard/pgdb.js",
   "version": "0.0.1",
   "dependencies": {
     "knex": "^0.95.15",

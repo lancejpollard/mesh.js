@@ -36,14 +36,15 @@ The (org, type, source, shard) is a key for an object.
     - chunk_id (bigint)
     - shard_url (string or null)
     - current (if it's the currently writable chunk)
-    - last_id (the last object id, which is also the count, for this chunk)
+    - last_index (the last object id, which is also the count, for this chunk)
+    - id_salt (so it appears random when resolving, random number between 0 and int)
 - n of these shards
   - property value tables
     - attachment (bucket is <shard>, folder is org/type/source/property/value)
       - object_organization_id (bigint)
       - object_type_id (don't need the chunk_id, because on this machine we already know it contains records in that chunk)
       - object_id (integer possibilities)
-      - index (-1 for non-list items)
+      - index (-1 for non-list items, actually, the schema tells us if it is an array)
       - property_id (integer)
       - bucket_id
       - value_id (id, biginteger)

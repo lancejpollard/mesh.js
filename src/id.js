@@ -15,7 +15,7 @@ WHERE organization_id = $1
   AND type_id = $2;
 `
 
-async function select(knex, { count = 1n, organizationId, typeId }) {
+async function reserve(knex, { count = 1n, organizationId, typeId }) {
   const result = await knex.query({
     text: SELECT_FOR_UPDATE,
     values: [ organizationId, typeId ]
@@ -30,5 +30,5 @@ async function select(knex, { count = 1n, organizationId, typeId }) {
     values: [ organizationId, typeId, String(nextId) ]
   })
 
-  return lastId
+  return nextId
 }

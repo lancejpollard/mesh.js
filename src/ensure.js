@@ -1,21 +1,34 @@
 
 const CONFIG = require('./config')
 const {
-  createShardTable,
-  createShardMappingTable,
-  createInitialShard,
-  createStringValueTable,
-  createObjectTable,
+  PROPERTY_TABLE_CREATOR,
+  createChunkShardShardTable,
+  createChunkShardTable,
+  createInitialChunkShardShardRecord,
 } = require('./create')
 
 async function ensureCenter(knex) {
-  await ensureShardTable(knex)
-  await ensureShardMappingTable(knex)
-  await ensureInitialShard(knex)
+  await ensureChunkShardShardTable(knex)
+  await ensureChunkShardTable(knex)
+  await ensureInitialChunkShardShardRecord(knex)
 }
 
-async function ensureInitialShard(knex) {
-  const shard = await knex(CONFIG.RECORD_SHARD_TABLE_NAME)
+async function ensureChunkShardShardTable(knex) {
+  const hasTable = await knex.schema.hasTable(CONFIG.CHUNK_SHARD_SHARD_TABLE_NAME)
+  if (!hasTable) {
+    await createChunkShardShardTable(knex)
+  }
+}
+
+async function ensureChunkShardTable(knex) {
+  const hasTable = await knex.schema.hasTable(CONFIG.CHUNK_SHARD_TABLE_NAME)
+  if (!hasTable) {
+    await createChunkShardTable(knex)
+  }
+}
+
+async function ensureInitialChunkShardShardRecord(knex) {
+  const shard = await knex(CONFIG.CHUNK_SHARD_SHARD_TABLE_NAME)
     .where('id', 0)
     .first()
 
@@ -23,7 +36,7 @@ async function ensureInitialShard(knex) {
     return shard
   }
 
-  return await createInitialShard(knex)
+  return await createInitialChunkShardShardRecord(knex)
 }
 
 /**
@@ -31,47 +44,22 @@ async function ensureInitialShard(knex) {
  * to keep things simple for smaller-scale apps (or beginnings).
  */
 
-async function ensureBaseSchemaSet(knex) {
-  await ensureObjectTable(knex)
+async function ensureBaseSchema(knex) {
+  await ensureEachPropertyTable(knex)
 }
 
-async function ensureObjectTable(knex) {
-  const hasTable = await knex.schema.hasTable('object')
-  if (!hasTable) {
-    await createObjectTable(knex)
-  }
-}
-
-async function ensureEachPropertyValueTable(knex) {
-  await ensureStringValueTable()
-}
-
-async function ensureStringValueTable(knex) {
-  const hasTable = await knex.schema.hasTable('value_string')
-  if (!hasTable) {
-    await createStringValueTable(knex)
-  }
-}
-
-async function ensureShardTable(knex) {
-  const hasTable = await knex.schema.hasTable(CONFIG.RECORD_SHARD_TABLE_NAME)
-  if (!hasTable) {
-    await createShardTable(knex)
-  }
-}
-
-async function ensureShardMappingTable(knex) {
-  const hasTable = await knex.schema.hasTable('shard_local_table')
-  if (!hasTable) {
-    await createShardMappingTable(knex)
+async function ensureEachPropertyTable(knex) {
+  for (const name in PROPERTY_TABLE_CREATOR) {
+    const call = PROPERTY_TABLE_CREATOR[name]
+    const hasTable = await knex.schema.hasTable(`mesh_${name}`)
+    if (!hasTable) {
+      await call(knex)
+    }
   }
 }
 
 module.exports = {
   ensureCenter,
-  ensureShardTable,
-  ensureBaseSchemaSet,
-  ensureObjectTable,
-  ensureEachPropertyValueTable,
-  ensureStringValueTable,
+  ensureChunkShardShardTable,
+  ensureBaseSchema,
 }
