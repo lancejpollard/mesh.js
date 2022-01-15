@@ -6,6 +6,7 @@ const {
   createChunkShardTable,
   createInitialChunkShardShardRecord,
   createTypeTypeRecord,
+  createTypeOrganizationRecord,
 } = require('./create')
 
 async function ensureCenter(knex) {
@@ -48,6 +49,7 @@ async function ensureInitialChunkShardShardRecord(knex) {
 async function ensureBaseSchema(knex) {
   await ensureEachPropertyTable(knex)
   await ensureTypeTypeRecord(knex)
+  // await ensureTypeOrganizationRecord(knex)
 }
 
 async function ensureEachPropertyTable(knex) {
@@ -62,6 +64,10 @@ async function ensureEachPropertyTable(knex) {
 
 async function ensureTypeTypeRecord(knex) {
   await createTypeTypeRecord(knex)
+}
+
+async function ensureTypeOrganizationRecord(knex) {
+  await createTypeOrganizationRecord(knex)
 }
 
 module.exports = {

@@ -1,20 +1,14 @@
 
+const permute = require('@lancejpollard/configured-quadratic-residue-prng.js')
 const CONFIG = require('./config')
 
 const SELECT_FOR_UPDATE = `
-SELECT last_index
+SELECT last_index, id_salt, id_size
 FROM ${CONFIG.CHUNK_SHARD_TABLE_NAME}
 WHERE organization_id = :organizationId:
   AND type_id = :typeId:
 LIMIT 1
 FOR UPDATE;
-`
-
-const UPDATE = `
-UPDATE ${CONFIG.CHUNK_SHARD_TABLE_NAME}
-SET last_index = :lastIndex:
-WHERE organization_id = :organizationId:
-  AND type_id = :typeId:;
 `
 
 async function reserve(knex, { count = 1n, organizationId, typeId }) {
@@ -23,19 +17,32 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
     typeId
   })
 
-  console.log(result)
-
   const record = result.rows[0]
   const lastId = BigInt(record.last_index)
+  const idSalt = BigInt(record.id_salt)
   const nextId = lastId + count
 
-  await knex.raw(UPDATE, {
-    organizationId,
-    typeId,
-    lastIndex: String(nextId)
-  })
+  await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
+    .update({
+      last_index: nextId
+    })
+    .where({
+      organization_id: organizationId,
+      type_id: typeId,
+    })
 
-  return nextId
+  const diff = Number(nextId - lastId)
+  const array = new Array(diff)
+  const usePermutation = idSalt !== 0n
+
+  let i = 0n
+  while (i < diff) {
+    const baseId = lastId + i
+    array[i] = usePermutation ? permute(baseId, idSalt, ) : baseId
+    i++
+  }
+
+  return array
 }
 
 module.exports = reserve

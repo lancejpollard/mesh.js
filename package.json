@@ -2,6 +2,7 @@
   "name": "@lancejpollard/pgdb.js",
   "version": "0.0.1",
   "dependencies": {
+    "@lancejpollard/configured-quadratic-residue-prng.js": "^1.0.0",
     "knex": "^0.95.15",
     "pg": "^8.7.1"
   },

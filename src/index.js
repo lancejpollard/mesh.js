@@ -6,6 +6,7 @@ const {
 } = require('./ensure')
 const {
   revokeCenter,
+  revokeEachPropertyTable,
 } = require('./remove')
 
 // - create central table
@@ -96,6 +97,7 @@ class Graph {
   async revoke() {
     log('revoking db')
     await revokeEachShard(this)
+    await revokeEachPropertyTable(this.shards[0])
     await revokeCenter(this.shards[0])
     log('revoked db')
   }

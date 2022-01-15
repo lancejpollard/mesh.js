@@ -15,7 +15,7 @@ async function test() {
   } catch (e) {
 
   } finally {
-    await graph.revoke()
+    // await graph.revoke()
     await graph.detach()
   }
 }
