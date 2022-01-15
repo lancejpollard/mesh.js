@@ -1,28 +1,28 @@
 
-# Postgres GraphDB
+# Prime.js
 
 A layer above a network of Postgres shards for dealing with records modeled as graph objects.
 
+## Usage
+
+```
+npm install @lancejpollard/prime.js
+```
+
+### `attach({ url })`
+
 ```js
-const attach = require('@lancejpollard/pgdb.js')
+const attach = require('@lancejpollard/prime.js')
 
-const graph = await attach({
-  initialconnectionurl
-})
-
-graph.create()
-graph.update()
-graph.remove()
-graph.select({ graphqllikequery })
-graph.survey() // get list of shards
-await graph.commit(async () => {
-  graph.create()
-  graph.update()
+const prime = await attach({
+  url: `postgresql://localhost:5432/postgres_graphql_test`
 })
 ```
 
+### `prime.select(query)`
+
 ```js
-const { type } = await graph.select({
+const { type } = await prime.select({
   type: {
     single: true,
     filter: {
@@ -45,22 +45,58 @@ const { type } = await graph.select({
 })
 ```
 
+### `prime.create(record)`
+
 ```js
-const org = await graph.create({
-  type: 'organization',
+const org = await prime.create({
+  prime: [orgId, typeId],
   slug: 'foo',
   title: 'Foo',
 })
 ```
 
+### `prime.create(list)`
+
+You can also create many records at a time.
+
+### `prime.update()`
+
 ```js
-await graph.update({
-  type: 'organization',
+await prime.update({
+  prime: [orgId, typeId, objectId, chunkId],
 }, {
   slug: 'bar',
   title: 'Bar',
+}, {
+  slug: true,
+  title: true,
 })
 ```
+
+### `prime.commit(fn)`
+
+```js
+await prime.commit(async () => {
+  prime.create(...)
+  prime.update(...)
+})
+```
+
+### `prime.survey()`
+
+Get list of shards and database table metadata of the system, to aid in the debugging process.
+
+### `prime.remove({ id })`
+
+Remove record by ID.
+
+### `prime.remove([ { id }, ..., { id } ])`
+
+Remove many records at once.
+
+### `prime.revoke()`
+
+Remove the whole database system, be careful. Useful for testing prime during development.
 
 ## Architecture
 
@@ -186,6 +222,10 @@ smallinteger
 ## Algorithms
 
 Should probably use a [two-phase commit](https://dropbox.tech/infrastructure/cross-shard-transactions-at-10-million-requests-per-second) to do transactions.
+
+### Security
+
+You have to have permission to edit the organization or specific records within the organization to edit.
 
 ### Insertion
 
