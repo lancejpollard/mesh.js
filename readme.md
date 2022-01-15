@@ -21,6 +21,47 @@ await graph.commit(async () => {
 })
 ```
 
+```js
+const { type } = await graph.select({
+  type: {
+    single: true,
+    filter: {
+      name: 'type'
+    },
+    select: {
+      name: true,
+      properties: {
+        select: {
+          name: true,
+          propertyTypes: {
+            select: {
+              name: true
+            }
+          }
+        }
+      }
+    }
+  }
+})
+```
+
+```js
+const org = await graph.create({
+  type: 'organization',
+  slug: 'foo',
+  title: 'Foo',
+})
+```
+
+```js
+await graph.update({
+  type: 'organization',
+}, {
+  slug: 'bar',
+  title: 'Bar',
+})
+```
+
 ## Architecture
 
 The (org, type, source, shard) is a key for an object.
