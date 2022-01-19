@@ -400,7 +400,7 @@ async function createAttachmentValueTable(knex) {
   await knex.schema.createTable('mesh_attachment', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.integer('bucket_id')
     t.string('value_hash')
@@ -432,7 +432,7 @@ async function createStringValueTable(knex) {
   await knex.schema.createTable('mesh_string', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.string('value')
     t.index(['object_organization_id', 'object_type_id'])
@@ -461,7 +461,7 @@ async function createTextValueTable(knex) {
   await knex.schema.createTable('mesh_text', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.text('value')
     t.index(['object_organization_id', 'object_type_id'])
@@ -491,7 +491,7 @@ async function createDecimalValueTable(knex) {
   await knex.schema.createTable('mesh_decimal', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.decimal('value', null)
     t.index(['object_organization_id', 'object_type_id'])
@@ -521,7 +521,7 @@ async function createIntegerValueTable(knex) {
   await knex.schema.createTable('mesh_integer', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.integer('value')
     t.index(['object_organization_id', 'object_type_id'])
@@ -550,7 +550,7 @@ async function createBooleanValueTable(knex) {
   await knex.schema.createTable('mesh_boolean', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.boolean('value')
     t.index(['object_organization_id', 'object_type_id'])
@@ -579,7 +579,7 @@ async function createTimestampValueTable(knex) {
   await knex.schema.createTable('mesh_timestamp', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.timestamp('value')
     t.index(['object_organization_id', 'object_type_id'])
@@ -608,7 +608,7 @@ async function createPropertyBindingTable(knex) {
   await knex.schema.createTable('mesh_property_binding', t => {
     t.biginteger('object_organization_id')
     t.integer('object_type_id')
-    t.integer('object_id')
+    t.biginteger('object_id')
     t.integer('object_property_id')
     t.biginteger('value_organization_id')
     t.integer('value_type_id')
@@ -646,11 +646,11 @@ async function createObjectBindingTable(knex) {
   await knex.schema.createTable('mesh_object_binding', t => {
     t.biginteger('object_organization_id').notNull()
     t.integer('object_type_id').notNull()
-    t.integer('object_id').notNull()
+    t.biginteger('object_id').notNull()
     t.integer('object_property_id').notNull()
     t.biginteger('value_organization_id').notNull()
     t.integer('value_type_id').notNull()
-    t.integer('value_object_id').notNull()
+    t.biginteger('value_object_id').notNull()
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
