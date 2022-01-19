@@ -6,27 +6,29 @@ const {
 } = require('./biginteger')
 
 const PROPERTY_TABLE_CREATOR = {
-  attachment: createAttachmentValueTable,
-  string: createStringValueTable,
-  text: createTextValueTable,
-  decimal: createDecimalValueTable,
-  integer: createIntegerValueTable,
-  boolean: createBooleanValueTable,
-  timestamp: createTimestampValueTable,
-  property_binding: createPropertyBindingTable,
-  object_binding: createObjectBindingTable,
+  attachment: createAttachmentTable,
+  string: createStringTable,
+  text: createTextTable,
+  decimal: createDecimalTable,
+  integer: createIntegerTable,
+  boolean: createBooleanTable,
+  timestamp: createTimestampTable,
+  property: createPropertyTable,
+  association: createAssociationTable,
+  object: createObjectTable,
 }
 
 const PROPERTY_RECORD_CREATOR = {
-  attachment: createAttachmentValueRecord,
-  string: createStringValueRecord,
-  text: createTextValueRecord,
-  decimal: createDecimalValueRecord,
-  integer: createIntegerValueRecord,
-  boolean: createBooleanValueRecord,
-  timestamp: createTimestampValueRecord,
-  property_binding: createPropertyBindingRecord,
-  object_binding: createObjectBindingRecord,
+  attachment: createAttachmentValue,
+  string: createStringValue,
+  text: createTextValue,
+  decimal: createDecimalValue,
+  integer: createIntegerValue,
+  boolean: createBooleanValue,
+  timestamp: createTimestampValue,
+  property: createPropertyRecord,
+  association: createAssociationRecord,
+  object: createObjectRecord,
 }
 
 /**
@@ -34,7 +36,7 @@ const PROPERTY_RECORD_CREATOR = {
  */
 
 async function createChunkShardShardTable(knex) {
-  await knex.schema.createTable(CONFIG.CHUNK_SHARD_SHARD_TABLE_NAME, t => {
+  await knex.schema.createTable(CONFIG.TABLE.CHUNK_SHARD_SHARD, t => {
     t.increments('id').notNull()
     t.string('shard_url')
   })
@@ -55,7 +57,7 @@ async function createChunkShardShardTable(knex) {
  */
 
 async function createChunkShardTable(knex) {
-  await knex.schema.createTable(CONFIG.CHUNK_SHARD_TABLE_NAME, t => {
+  await knex.schema.createTable(CONFIG.TABLE.CHUNK_SHARD, t => {
     t.biginteger('organization_id').notNull()
     t.integer('type_id').notNull()
     t.biginteger('chunk_id_salt').notNull().defaultTo(0)
@@ -88,7 +90,7 @@ async function createInitialChunkShardRecord(knex, {
     chunkIdSalt = getRandomSalt()
   }
 
-  const [ record ] = await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
+  const [ record ] = await knex(CONFIG.TABLE.CHUNK_SHARD)
     .returning(['chunk_id', 'id_salt'])
     .insert({
       organization_id: organizationId,
@@ -110,7 +112,7 @@ async function createInitialChunkShardRecord(knex, {
  */
 
 async function createInitialChunkShardShardRecord(knex) {
-  return await knex(CONFIG.CHUNK_SHARD_SHARD_TABLE_NAME)
+  return await knex(CONFIG.TABLE.CHUNK_SHARD_SHARD)
     .insert({})
     .returning('*')
 }
@@ -144,6 +146,13 @@ async function createEachInitialChunkShardRecord(knex) {
     idSalt: typeSalt,
   })
 
+  await createObjectRecord(knex, {
+    organizationId,
+    typeId,
+    objectId: typeId,
+    debug: `type:type`
+  })
+
   CONFIG.UPDATE_SCHEMA({
     type: {
       id: typeId,
@@ -157,8 +166,15 @@ async function createEachInitialChunkShardRecord(knex) {
     idSalt: propertySalt,
   })
 
+  await createObjectRecord(knex, {
+    organizationId,
+    typeId,
+    objectId: propertyTypeId,
+    debug: `type:property`
+  })
+
   CONFIG.UPDATE_SCHEMA({
-    property: {
+    type_property: {
       id: propertyTypeId,
       chunkId: propertyChunkId
     }
@@ -170,8 +186,15 @@ async function createEachInitialChunkShardRecord(knex) {
     idSalt: propertyTypeSalt
   })
 
+  await createObjectRecord(knex, {
+    organizationId,
+    typeId,
+    objectId: propertyTypeTypeId,
+    debug: `type:property_type`
+  })
+
   CONFIG.UPDATE_SCHEMA({
-    property_type: {
+    type_property_type: {
       id: propertyTypeTypeId,
       chunkId: propertyTypeChunkId
     }
@@ -180,6 +203,13 @@ async function createEachInitialChunkShardRecord(knex) {
   let { chunk_id: organizationChunkId } = await createInitialChunkShardRecord(knex, {
     organizationId,
     typeId: organizationTypeId,
+  })
+
+  await createObjectRecord(knex, {
+    organizationId,
+    typeId,
+    objectId: organizationTypeId,
+    debug: `type:organization`
   })
 
   CONFIG.UPDATE_SCHEMA({
@@ -194,15 +224,22 @@ async function createEachInitialChunkShardRecord(knex) {
   for (let type in CONFIG.SCHEMA) {
     const typeDef = CONFIG.SCHEMA[type]
     if (typeDef.id == null) {
-      let typeId = resolve(typeIndex++, typeSalt, 4)
+      let newTypeId = resolve(typeIndex++, typeSalt, 4)
       let { chunk_id: chunkId } = await createInitialChunkShardRecord(knex, {
         organizationId,
+        typeId: newTypeId,
+      })
+
+      await createObjectRecord(knex, {
+        organizationId,
         typeId,
+        objectId: newTypeId,
+        debug: `type:${type}`
       })
 
       CONFIG.UPDATE_SCHEMA({
         [type]: {
-          id: typeId,
+          id: newTypeId,
           chunkId
         }
       })
@@ -221,6 +258,13 @@ async function createEachInitialChunkShardRecord(knex) {
       })
 
       propertyDef.id = propertyObjectId
+
+      await createObjectRecord(knex, {
+        organizationId,
+        typeId: CONFIG.getIdForType('type_property'),
+        objectId: propertyObjectId,
+        debug: `type_property:${propertyName}`
+      })
     }
   }
 
@@ -230,32 +274,35 @@ async function createEachInitialChunkShardRecord(knex) {
       const propertyDef = typeDef.properties[propertyName]
 
       // property belongs to type
-      await createObjectBindingRecord(knex, {
+      await createAssociationRecord(knex, {
         organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-        typeId: CONFIG.getIdForType('property'),
+        typeId: CONFIG.getIdForType('type_property'),
         objectId: propertyDef.id,
-        propertyId: CONFIG.getIdForProperty('property', 'type_id'),
+        propertyId: CONFIG.getIdForProperty('type_property', 'type'),
         valueOrganizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
         valueTypeId: CONFIG.getIdForType('type'),
         valueObjectId: typeDef.id,
+        debug: `type_property:${propertyName}:type:${type}`,
       })
 
       // create property.name
-      await createStringValueRecord(knex, {
+      await createStringValue(knex, {
         organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-        typeId: CONFIG.getIdForType('property'),
+        typeId: CONFIG.getIdForType('type_property'),
         objectId: propertyDef.id,
-        propertyId: CONFIG.getIdForProperty('property', 'name'),
+        propertyId: CONFIG.getIdForProperty('type_property', 'name'),
         value: propertyName,
+        debug: `type_property:name:${propertyName}`,
       })
 
       // create property.isList
-      await createBooleanValueRecord(knex, {
+      await createBooleanValue(knex, {
         organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-        typeId: CONFIG.getIdForType('property'),
+        typeId: CONFIG.getIdForType('type_property'),
         objectId: propertyDef.id,
-        propertyId: CONFIG.getIdForProperty('property', 'is_list'),
+        propertyId: CONFIG.getIdForProperty('type_property', 'is_list'),
         value: !!propertyDef.isList,
+        debug: `type_property:is_list:${!!propertyDef.isList}`,
       })
 
       // property type
@@ -265,21 +312,37 @@ async function createEachInitialChunkShardRecord(knex) {
         // propertyType record
         const [propertyTypeObjectId] = await reserveIdList(knex, {
           organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-          typeId: CONFIG.getIdForType('property_type'),
-        })
-
-        // propertyType belongs to property
-        await createObjectBindingRecord(knex, {
-          organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-          typeId: CONFIG.getIdForType('property_type'),
-          objectId: propertyTypeObjectId,
-          propertyId: CONFIG.getIdForProperty('property_type', 'property_id'),
-          valueOrganizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-          valueTypeId: CONFIG.getIdForType('property'),
-          valueObjectId: propertyDef.id,
+          typeId: CONFIG.getIdForType('type_property_type'),
         })
 
         propertyTypeDef.id = propertyTypeObjectId
+
+        await createObjectRecord(knex, {
+          organizationId,
+          typeId: CONFIG.getIdForType('type_property_type'),
+          objectId: propertyTypeObjectId,
+          debug: `type_property_type:${propertyName}:${propertyTypeName}`
+        })
+
+        // propertyType belongs to property
+        await createAssociationRecord(knex, {
+          organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+          typeId: CONFIG.getIdForType('type_property_type'),
+          objectId: propertyTypeObjectId,
+          propertyId: CONFIG.getIdForProperty('type_property_type', 'property'),
+          valueOrganizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+          valueTypeId: CONFIG.getIdForType('type_property'),
+          valueObjectId: propertyDef.id,
+        })
+
+        // create propertyType.name
+        await createStringValue(knex, {
+          organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+          typeId: CONFIG.getIdForType('type_property_type'),
+          objectId: propertyTypeObjectId,
+          propertyId: CONFIG.getIdForProperty('type_property_type', 'name'),
+          value: propertyTypeName,
+        })
       }
     }
 
@@ -287,98 +350,6 @@ async function createEachInitialChunkShardRecord(knex) {
       [type]: typeDef
     })
   }
-}
-
-async function createTypeChunkShardRecord(knex) {
-  // create type id record
-  await createChunkShardRecord(knex, {
-    organizationId: 0,
-    typeId: 0,
-    idSize: 4
-  })
-
-  // create property id record
-  await createChunkShardRecord(knex, {
-    organizationId: 0,
-    typeId: 0,
-    idSize: 4
-  })
-
-  const typeNames = Object.keys(CONFIG.TYPE_ID)
-
-  const ids = await reserveIdList(knex, {
-    organizationId: 0,
-    typeId: 0,
-    count: typeNames.length
-  })
-
-  typeNames.forEach((name, i) => {
-    CONFIG.addType(name, ids[i])
-  })
-}
-
-async function createTypeType(knex) {
-  const [objectId] = await reserveIdList(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID, // main app organization
-    typeId: CONFIG.TYPE_ID.type // type: 'type'
-  })
-
-  // create type type.name
-  await createStringValueRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: 0,
-    objectId,
-    propertyId: CONFIG.PROPERTY_ID.property.name, // name property on type
-    value: 'type'
-  })
-}
-
-async function createTypeProperty(knex) {
-  // create property id
-  await createChunkShardRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: CONFIG.TYPE_ID.property,
-    idSize: 4,
-    idSalt: 0,
-  })
-
-  const [objectId] = await reserveIdList(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID, // main app organization
-    typeId: CONFIG.TYPE_ID.type // type: 'type'
-  })
-
-  // create type property.name
-  await createStringValueRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: CONFIG.TYPE_ID.type,
-    objectId,
-    propertyId: CONFIG.PROPERTY_ID.property.name, // name property on type
-    value: 'property'
-  })
-}
-
-async function createTypePropertyType(knex) {
-  // create propertyType id
-  await createChunkShardRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: CONFIG.TYPE_ID.propertyType,
-    idSize: 4,
-    idSalt: 0,
-  })
-
-  const [objectId] = await reserveIdList(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID, // main app organization
-    typeId: CONFIG.TYPE_ID.type // type: 'type'
-  })
-
-  // create property propertyType.name
-  await createStringValueRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: 0,
-    objectId,
-    propertyId: CONFIG.PROPERTY_ID.propertyType.name, // name property on type
-    value: 'propertyType'
-  })
 }
 
 /**
@@ -391,33 +362,30 @@ async function createTypeTypeSchema(knex) {
   await createEachInitialChunkShardRecord(knex)
 }
 
-async function createPropertyRecord(knex) {
-  const create = PROPERTY_RECORD_CREATOR[type]
-  await create(knex, { value })
-}
-
-async function createAttachmentValueTable(knex) {
-  await knex.schema.createTable('mesh_attachment', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
+async function createAttachmentTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.ATTACHMENT, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
     t.integer('bucket_id')
     t.string('value_hash')
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createAttachmentValueRecord(knex, {
+async function createAttachmentValue(knex, {
   organizationId,
   typeId,
   objectId,
   propertyId,
   bucketId,
   valueHash,
+  debug,
 }) {
-  await knex('mesh_attachment')
+  await knex(CONFIG.TABLE.ATTACHMENT)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
@@ -425,201 +393,219 @@ async function createAttachmentValueRecord(knex, {
       object_property_id: propertyId,
       bucket_id: bucketId,
       value_hash: valueHash,
+      debug,
     })
 }
 
-async function createStringValueTable(knex) {
-  await knex.schema.createTable('mesh_string', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
+async function createStringTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.STRING, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
     t.string('value')
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createStringValueRecord(knex, {
+async function createStringValue(knex, {
   organizationId,
   typeId,
   objectId,
   propertyId,
-  value
+  value,
+  debug,
 }) {
-  await knex('mesh_string')
+  await knex(CONFIG.TABLE.STRING)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
       object_id: objectId,
       object_property_id: propertyId,
-      value
+      value,
+      debug,
     })
 }
 
-async function createTextValueTable(knex) {
-  await knex.schema.createTable('mesh_text', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
+async function createTextTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.TEXT, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
     t.text('value')
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createTextValueRecord(knex, {
+async function createTextValue(knex, {
   organizationId,
   typeId,
   objectId,
   propertyId,
-  value
+  value,
+  debug,
 }) {
-  await knex('mesh_text')
+  await knex(CONFIG.TABLE.TEXT)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
       object_id: objectId,
       object_property_id: propertyId,
-      value
+      value,
+      debug,
     })
-
 }
 
-async function createDecimalValueTable(knex) {
-  await knex.schema.createTable('mesh_decimal', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
+async function createDecimalTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.DECIMAL, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
     t.decimal('value', null)
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createDecimalValueRecord(knex, {
+async function createDecimalValue(knex, {
   organizationId,
   typeId,
   objectId,
   propertyId,
-  value
+  value,
+  debug,
 }) {
-  await knex('mesh_decimal')
+  await knex(CONFIG.TABLE.DECIMAL)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
       object_id: objectId,
       object_property_id: propertyId,
-      value
+      value,
+      debug,
     })
-
 }
 
-async function createIntegerValueTable(knex) {
-  await knex.schema.createTable('mesh_integer', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
+async function createIntegerTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.INTEGER, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
     t.integer('value')
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createIntegerValueRecord(knex, {
+async function createIntegerValue(knex, {
   organizationId,
   typeId,
   objectId,
   propertyId,
-  value
+  value,
+  debug,
 }) {
-  await knex('mesh_integer')
+  await knex(CONFIG.TABLE.INTEGER)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
       object_id: objectId,
       object_property_id: propertyId,
-      value
+      value,
+      debug,
     })
 }
 
-async function createBooleanValueTable(knex) {
-  await knex.schema.createTable('mesh_boolean', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
+async function createBooleanTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.BOOLEAN, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
     t.boolean('value')
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createBooleanValueRecord(knex, {
+async function createBooleanValue(knex, {
   organizationId,
   typeId,
   objectId,
   propertyId,
-  value
+  value,
+  debug,
 }) {
-  await knex('mesh_boolean')
+  await knex(CONFIG.TABLE.BOOLEAN)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
       object_id: objectId,
       object_property_id: propertyId,
-      value
+      value,
+      debug,
     })
 }
 
-async function createTimestampValueTable(knex) {
-  await knex.schema.createTable('mesh_timestamp', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
-    t.timestamp('value')
+async function createTimestampTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.TIMESTAMP, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
+    t.timestamp('value', { useTz: false })
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createTimestampValueRecord(knex, {
+async function createTimestampValue(knex, {
   organizationId,
   typeId,
   objectId,
   propertyId,
-  value
+  value,
+  debug,
 }) {
-  await knex('mesh_timestamp')
+  await knex(CONFIG.TABLE.TIMESTAMP)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
       object_id: objectId,
       object_property_id: propertyId,
-      value
+      value,
+      debug,
     })
 }
 
-async function createPropertyBindingTable(knex) {
-  await knex.schema.createTable('mesh_property_binding', t => {
-    t.biginteger('object_organization_id')
-    t.integer('object_type_id')
-    t.biginteger('object_id')
-    t.integer('object_property_id')
+async function createPropertyTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.PROPERTY, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.integer('object_property_id').notNull()
     t.biginteger('value_organization_id')
     t.integer('value_type_id')
     t.integer('value_object_id')
     t.integer('value_property_id')
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createPropertyBindingRecord(knex, {
+async function createPropertyRecord(knex, {
   organizationId,
   typeId,
   objectId,
@@ -628,8 +614,9 @@ async function createPropertyBindingRecord(knex, {
   valueTypeId,
   valueId,
   valuePropertyId,
+  debug,
 }) {
-  await knex('mesh_property_binding')
+  await knex(CONFIG.TABLE.PROPERTY)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
@@ -639,11 +626,12 @@ async function createPropertyBindingRecord(knex, {
       value_type_id: valueTypeId,
       value_id: valueId,
       value_property_id: valuePropertyId,
+      debug,
     })
 }
 
-async function createObjectBindingTable(knex) {
-  await knex.schema.createTable('mesh_object_binding', t => {
+async function createAssociationTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.ASSOCIATION, t => {
     t.biginteger('object_organization_id').notNull()
     t.integer('object_type_id').notNull()
     t.biginteger('object_id').notNull()
@@ -651,12 +639,13 @@ async function createObjectBindingTable(knex) {
     t.biginteger('value_organization_id').notNull()
     t.integer('value_type_id').notNull()
     t.biginteger('value_object_id').notNull()
+    t.text('debug')
     t.index(['object_organization_id', 'object_type_id'])
     t.index(['object_organization_id', 'object_type_id', 'object_id'])
   })
 }
 
-async function createObjectBindingRecord(knex, {
+async function createAssociationRecord(knex, {
   organizationId,
   typeId,
   objectId,
@@ -664,8 +653,9 @@ async function createObjectBindingRecord(knex, {
   valueOrganizationId,
   valueTypeId,
   valueObjectId,
+  debug,
 }) {
-  await knex('mesh_object_binding')
+  await knex(CONFIG.TABLE.ASSOCIATION)
     .insert({
       object_organization_id: organizationId,
       object_type_id: typeId,
@@ -674,6 +664,34 @@ async function createObjectBindingRecord(knex, {
       value_organization_id: valueOrganizationId,
       value_type_id: valueTypeId,
       value_object_id: valueObjectId,
+      debug,
+    })
+}
+
+
+async function createObjectTable(knex) {
+  await knex.schema.createTable(CONFIG.TABLE.OBJECT, t => {
+    t.biginteger('object_organization_id').notNull()
+    t.integer('object_type_id').notNull()
+    t.biginteger('object_id').notNull()
+    t.text('debug')
+    t.index(['object_organization_id', 'object_type_id'])
+    t.index(['object_organization_id', 'object_type_id', 'object_id'])
+  })
+}
+
+async function createObjectRecord(knex, {
+  organizationId,
+  typeId,
+  objectId,
+  debug,
+}) {
+  await knex(CONFIG.TABLE.OBJECT)
+    .insert({
+      object_organization_id: organizationId,
+      object_type_id: typeId,
+      object_id: objectId,
+      debug,
     })
 }
 

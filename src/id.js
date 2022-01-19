@@ -4,7 +4,7 @@ const CONFIG = require('./config')
 
 const SELECT_FOR_UPDATE = `
 SELECT last_index, id_salt, id_size
-FROM ${CONFIG.CHUNK_SHARD_TABLE_NAME}
+FROM ${CONFIG.TABLE.CHUNK_SHARD}
 WHERE organization_id = :organizationId:
   AND type_id = :typeId:
 LIMIT 1
@@ -34,7 +34,7 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
   const nextId = lastId + count
   const idSize = record.id_size * 4
 
-  await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
+  await knex(CONFIG.TABLE.CHUNK_SHARD)
     .update({
       last_index: nextId
     })

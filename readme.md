@@ -361,6 +361,8 @@ Pagination/sorting requires [3 passes](https://engineering.medallia.com/blog/pos
 
 All of the schema data is contained in the primary node.
 
+Can divide the ID generation tables into separate tables with various chunks so you can get new IDs without worrying if the table is being blocked. Let us say 4096 ID tables. Then in JS memory, we tell what tables are locked, so we get ID from unlocked table.
+
 ### Security
 
 You have to have permission to edit the organization or specific records within the organization to edit.

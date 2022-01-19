@@ -1,7 +1,20 @@
 
 const CONFIG = {
-  CHUNK_SHARD_TABLE_NAME: 'mesh_chunk_shard',
-  CHUNK_SHARD_SHARD_TABLE_NAME: 'mesh_chunk_shard_shard',
+  TABLE: {
+    CHUNK_SHARD: 'weave_chunk_shard',
+    CHUNK_SHARD_SHARD: 'weave_chunk_shard_shard',
+    STRING: 'weave_string',
+    ATTACHMENT: 'weave_attachment',
+    TEXT: 'weave_text',
+    DECIMAL: 'weave_decimal',
+    INTEGER: 'weave_integer',
+    BOOLEAN: 'weave_boolean',
+    TIMESTAMP: 'weave_timestamp',
+    PROPERTY: 'weave_property',
+    ASSOCIATION: 'weave_association',
+    OBJECT: 'weave_object'
+  },
+
   DEFAULT_IP: '127.0.0.1',
 
   SCHEMA: {},
@@ -61,264 +74,268 @@ const TYPE = (name, properties) => {
     const propertyConfig = properties[propertyName]
     const propertyDef = typeDef.properties[propertyName] = { type: {} }
     propertyDef.isList = propertyConfig.is_list
-    propertyConfig.type.forEach(propertyTypeName => {
-      propertyDef.type[propertyTypeName] = {}
+    propertyConfig.type.forEach(propertyType => {
+      propertyDef.type[propertyType.name] = propertyType
     })
   })
 }
 
 TYPE('type', {
   name: {
-    type: ['string'],
+    type: [{ name: 'string' }],
     required: true,
   },
   properties: {
     is_list: true,
-    type: ['property']
+    type: [{ name: 'type_property' }],
+    inverse: ['type'],
   },
   title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   description: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
 })
 
-TYPE('property', {
+TYPE('type_property', {
   name: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
   property_types: {
     is_list: true,
-    type: ['property_type']
+    type: [{ name: 'property_type' }]
   },
   is_list: {
-    type: ['boolean'],
+    type: [{ name: 'boolean' }],
     default: false
   },
   default: {
     type: [],
   },
   title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   description: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
-  type_id: {
-    type: ['object_binding']
+  type: { // the type the property belongs to.
+    type: [{ name: 'type' }]
   }
 })
 
-TYPE('property_type', {
+TYPE('type_property_type', {
   name: {
-    type: ['string'],
+    type: [{ name: 'string' }],
     required: true,
   },
-  property_id: {
-    type: ['property_binding'],
+  property: { // the property it belongs to.
+    type: [{ name: 'type_property' }],
     required: true,
   },
   title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   description: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
 })
 
 TYPE('organization', {
   slug: {
-    type: ['string'],
+    type: [{ name: 'string' }],
     required: true,
   },
   title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   description: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   image: {
-    type: ['image']
+    type: [{ name: 'image' }]
   },
   keywords: {
-    type: ['term'],
+    type: [{ name: 'term' }],
     is_list: true
   }
 })
 
 TYPE('image', {
   bucket: {
-    type: ['biginteger'],
+    type: [{ name: 'biginteger' }],
     required: true,
   },
   media_type: {
-    type: ['string'],
+    type: [{ name: 'string' }],
     required: true,
   },
   sources: {
-    type: ['image_source'],
+    type: [{ name: 'image_source' }],
     is_list: true
   },
   preview: {
-    type: ['text'],
+    type: [{ name: 'text' }],
     required: true,
   },
   title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   description: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   keywords: {
-    type: ['term'],
+    type: [{ name: 'term' }],
     is_list: true
   }
 })
 
 TYPE('image_source', {
   base: {
-    type: ['image'],
+    type: [{ name: 'image' }],
     required: true,
   },
   width: {
-    type: ['integer'],
+    type: [{ name: 'integer' }],
     required: true,
   },
   height: {
-    type: ['integer'],
+    type: [{ name: 'integer' }],
     required: true,
   },
   size: {
-    type: ['integer'],
+    type: [{ name: 'integer' }],
     required: true,
   },
 })
 
 TYPE('agent', {
   avatar: {
-    type: ['image']
+    type: [{ name: 'image' }]
   },
   description: {
-    type: ['text']
+    type: [{ name: 'text' }]
   }
 })
 
 TYPE('session', {
   expiration_date: {
-    type: ['datetime'],
+    type: [{ name: 'datetime' }],
   },
   secret: {
-    type: ['string'],
+    type: [{ name: 'string' }],
     required: true
   },
   category: {
-    type: ['integer'],
+    type: [{ name: 'integer' }],
     required: true,
     default: 1
     // 1 = guest user
     // 2 = logged in user
     // 3 = logged in machine
   },
-  agent_id: {
-    type: ['property_binding']
+  agent: {
+    type: [{ name: 'agent' }]
   }
 })
 
 TYPE('actor', {
-  agent_id: {
-    type: ['property_binding']
+  agent: {
+    type: [{ name: 'agent' }]
   }
 })
 
 TYPE('agent_authentication', {
   username: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
   password: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
-  agent_id: {
-    type: ['property_binding']
+  agent: {
+    type: [{ name: 'agent' }]
   }
 })
 
 TYPE('action', {
   kind: {
-    type: ['integer'],
+    type: [{ name: 'integer' }],
     required: true,
     default: 1,
   }, // (create, update, delete)
   timestamp: {
-    type: ['datetime'],
+    type: [{ name: 'datetime' }],
     required: true
   },
-  agent_id: {
-    type: ['property_binding']
+  agent: {
+    type: [{ name: 'agent' }]
   },
-  value_id: {
-    type: ['property_binding']
+  datatype: {
+    type: [{ name: 'integer' }]
+  },
+  value: {
+    type: [{ name: 'property' }]
   }
 })
 
 TYPE('vote', {
   kind: {
-    type: ['integer'],
+    type: [{ name: 'integer' }],
     default: 1
   }, // (flag, agreement, disagreement)
-  action_id: {
-    type: ['property_binding']
+  action: {
+    type: [{ name: 'action' }]
   }
 })
 
 TYPE('term', {
   text: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
-  language_id: {
-    type: ['property_binding']
+  language: {
+    type: [{ name: 'language' }]
   },
-  script_id: {
-    type: ['property_binding']
+  script: {
+    type: [{ name: 'script' }]
   }
 })
 
 TYPE('language', {
   slug: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
   code2: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
   code3: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
   title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   native_title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   }
 })
 
 TYPE('script', {
   slug: {
-    type: ['string']
+    type: [{ name: 'string' }]
   },
   title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   },
   native_title: {
-    type: ['text']
+    type: [{ name: 'text' }]
   }
 })
 
 TYPE('membership', {
   organization: {
-    type: ['organization']
+    type: [{ name: 'organization' }]
   },
   actor: {
-    type: ['actor']
+    type: [{ name: 'actor' }]
   },
 })
 

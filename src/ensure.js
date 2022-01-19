@@ -16,21 +16,21 @@ async function ensureCenter(knex) {
 }
 
 async function ensureChunkShardShardTable(knex) {
-  const hasTable = await knex.schema.hasTable(CONFIG.CHUNK_SHARD_SHARD_TABLE_NAME)
+  const hasTable = await knex.schema.hasTable(CONFIG.TABLE.CHUNK_SHARD_SHARD)
   if (!hasTable) {
     await createChunkShardShardTable(knex)
   }
 }
 
 async function ensureChunkShardTable(knex) {
-  const hasTable = await knex.schema.hasTable(CONFIG.CHUNK_SHARD_TABLE_NAME)
+  const hasTable = await knex.schema.hasTable(CONFIG.TABLE.CHUNK_SHARD)
   if (!hasTable) {
     await createChunkShardTable(knex)
   }
 }
 
 async function ensureInitialChunkShardShardRecord(knex) {
-  const shard = await knex(CONFIG.CHUNK_SHARD_SHARD_TABLE_NAME)
+  const shard = await knex(CONFIG.TABLE.CHUNK_SHARD_SHARD)
     .where('id', 0)
     .first()
 
