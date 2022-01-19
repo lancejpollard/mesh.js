@@ -52,7 +52,7 @@ async function selectEveryType(knex) {
       'value'
     ])
     .where('object_organization_id', CONFIG.DEFAULT_ORGANIZATION_ID)
-    .where('object_type_id', CONFIG.TYPE_ID.property)
+    .where('object_type_id', CONFIG.getIdForType('property'))
 
   const propertyTypeBindingList = await knex('mesh_object_binding')
     .select([
@@ -65,7 +65,7 @@ async function selectEveryType(knex) {
       'value_object_id',
     ])
     .where('object_organization_id', CONFIG.DEFAULT_ORGANIZATION_ID)
-    .where('object_type_id', CONFIG.TYPE_ID.property)
+    .where('object_type_id', CONFIG.getIdForType('property'))
 
   const propertyTypeBooleanList = await knex('mesh_boolean')
     .select([
@@ -76,14 +76,14 @@ async function selectEveryType(knex) {
       'value'
     ])
     .where('object_organization_id', CONFIG.DEFAULT_ORGANIZATION_ID)
-    .where('object_type_id', CONFIG.TYPE_ID.property)
+    .where('object_type_id', CONFIG.getIdForType('property'))
 
   const propertyMap = propertyTypeStringList
     .reduce((m, x) => {
       const prime = `${x.object_organization_id}:${x.object_type_id}:${x.object_id}`
       const property = m[prime] = m[prime] ?? {}
       // such as "property.name = 'foo'"
-      const name = CONFIG.PROPERTY_NAME.property[x.object_property_id]
+      const name = CONFIG.getNameForProperty(CONFIG.getIdForType('property'), x.object_property_id)
       property[name] = x.value
       return m
     }, {})
@@ -91,23 +91,20 @@ async function selectEveryType(knex) {
   propertyTypeBooleanList.forEach(x => {
     const prime = `${x.object_organization_id}:${x.object_type_id}:${x.object_id}`
     const property = propertyMap[prime]
-    const name = CONFIG.PROPERTY_NAME.property[x.object_property_id]
+    const name = CONFIG.getNameForProperty(CONFIG.getIdForType('property'), x.object_property_id)
     property[name] = x.value
   })
-
-  console.log(propertyTypeBooleanList)
 
   const typeMap = propertyTypeBindingList
     .reduce((m, x) => {
       const propertyPrime = `${x.object_organization_id}:${x.object_type_id}:${x.object_id}`
       const property = propertyMap[propertyPrime]
       const typePrime = `${x.value_organization_id}:${x.value_type_id}:${x.value_object_id}`
-      const type = m[typePrime] = m[typePrime] ?? { properties: [] }
-      type.properties.push(property)
+      const type = m[typePrime] = m[typePrime] ?? { properties: {} }
+      type.properties[property.name] = property
       return m
     }, {})
 
-  console.log(JSON.stringify(typeMap))
   return typeMap
 }
 

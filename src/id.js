@@ -16,10 +16,16 @@ const OFFSET = {
   32: -9223372036854775808n
 }
 
+function resolve(i, salt, size) {
+  const fullSize = size * 4
+  const value = permute(i, salt, fullSize)
+  return value + OFFSET[fullSize]
+}
+
 async function reserve(knex, { count = 1n, organizationId, typeId }) {
   const result = await knex.raw(SELECT_FOR_UPDATE, {
-    organizationId,
-    typeId
+    organizationId: knex.raw(organizationId),
+    typeId: knex.raw(typeId)
   })
 
   const record = result.rows[0]
@@ -27,8 +33,6 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
   const idSalt = BigInt(record.id_salt)
   const nextId = lastId + count
   const idSize = record.id_size * 4
-
-  console.log(idSize)
 
   await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
     .update({
@@ -56,4 +60,7 @@ async function reserve(knex, { count = 1n, organizationId, typeId }) {
   return array
 }
 
-module.exports = reserve
+module.exports = {
+  reserve,
+  resolve,
+}

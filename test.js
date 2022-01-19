@@ -9,12 +9,13 @@ async function test() {
   })
 
   try {
-    await weave.create({
-      type: 'schema'
-    })
+    await weave.emerge()
+    // await weave.create({
+    //   type: 'schema'
+    // })
     console.log(weave.schema)
   } catch (e) {
-
+    console.log(e)
   } finally {
     await weave.revoke()
     await weave.detach()

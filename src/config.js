@@ -17,15 +17,18 @@ const CONFIG = {
           properties: {}
         }
       typeDef.id = typeConfig.id
-      Object.keys(typeConfig).forEach(propertyName => {
-        const propertyConfig = typeConfig[propertyName]
-        const propertyDef = typeDef[propertyName]
+      typeDef.chunkId = typeConfig.chunkId
+      if (!typeConfig.properties) return
+      Object.keys(typeConfig.properties).forEach(propertyName => {
+        const propertyConfig = typeConfig.properties[propertyName]
+        const propertyDef = typeDef.properties[propertyName]
         const reversePropertyDef = reverseTypeDef.properties[propertyConfig.id]
           = reverseTypeDef.properties[propertyConfig.id] ?? {
             name: propertyName,
             type: {}
           }
         propertyDef.id = propertyConfig.id
+        if (!propertyConfig.type) return
         Object.keys(propertyConfig.type).forEach(propertyTypeName => {
           const id = propertyConfig.type[propertyTypeName]
           reversePropertyDef.type[id] = propertyTypeName
@@ -57,7 +60,7 @@ const TYPE = (name, properties) => {
   Object.keys(properties).forEach(propertyName => {
     const propertyConfig = properties[propertyName]
     const propertyDef = typeDef.properties[propertyName] = { type: {} }
-    propertyDef.isList = propertyConfig.isList
+    propertyDef.isList = propertyConfig.is_list
     propertyConfig.type.forEach(propertyTypeName => {
       propertyDef.type[propertyTypeName] = {}
     })
@@ -70,7 +73,7 @@ TYPE('type', {
     required: true,
   },
   properties: {
-    isList: true,
+    is_list: true,
     type: ['property']
   },
   title: {
@@ -86,10 +89,10 @@ TYPE('property', {
     type: ['string']
   },
   property_types: {
-    isList: true,
+    is_list: true,
     type: ['property_type']
   },
-  isList: {
+  is_list: {
     type: ['boolean'],
     default: false
   },
@@ -102,7 +105,7 @@ TYPE('property', {
   description: {
     type: ['text']
   },
-  typeId: {
+  type_id: {
     type: ['object_binding']
   }
 })
@@ -140,7 +143,36 @@ TYPE('organization', {
   },
   keywords: {
     type: ['term'],
-    isList: true
+    is_list: true
+  }
+})
+
+TYPE('image', {
+  bucket: {
+    type: ['biginteger'],
+    required: true,
+  },
+  media_type: {
+    type: ['string'],
+    required: true,
+  },
+  sources: {
+    type: ['image_source'],
+    is_list: true
+  },
+  preview: {
+    type: ['text'],
+    required: true,
+  },
+  title: {
+    type: ['text']
+  },
+  description: {
+    type: ['text']
+  },
+  keywords: {
+    type: ['term'],
+    is_list: true
   }
 })
 
@@ -163,36 +195,16 @@ TYPE('image_source', {
   },
 })
 
-TYPE('image', {
-  bucket: {
-    type: ['biginteger'],
-    required: true,
-  },
-  media_type: {
-    type: ['string'],
-    required: true,
-  },
-  sources: {
-    type: ['image_source'],
-    isList: true
-  },
-  preview: {
-    type: ['text'],
-    required: true,
-  },
-  title: {
-    type: ['text']
+TYPE('agent', {
+  avatar: {
+    type: ['image']
   },
   description: {
     type: ['text']
-  },
-  keywords: {
-    type: ['term'],
-    isList: true
   }
 })
 
-TYPE('agent', {
+TYPE('session', {
   expiration_date: {
     type: ['datetime'],
   },
@@ -207,6 +219,9 @@ TYPE('agent', {
     // 1 = guest user
     // 2 = logged in user
     // 3 = logged in machine
+  },
+  agent_id: {
+    type: ['property_binding']
   }
 })
 
@@ -299,11 +314,11 @@ TYPE('script', {
 })
 
 TYPE('membership', {
-  organization_id: {
-    type: ['property_binding']
+  organization: {
+    type: ['organization']
   },
-  actor_id: {
-    type: ['property_binding']
+  actor: {
+    type: ['actor']
   },
 })
 

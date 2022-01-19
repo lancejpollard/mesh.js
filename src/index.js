@@ -53,11 +53,16 @@ class Prime {
   async attach() {
     log('attaching db')
     await connect(this.shards[0])
+    // this.server = await listen()
+    log('attached db')
+  }
+
+  async emerge() {
+    log('emerging')
     await ensureCenter(this.shards[0])
     await ensureBaseSchema(this.shards[0])
     this.schema = await selectEveryType(this.shards[0])
-    // this.server = await listen()
-    log('attached db')
+    log('emerged')
   }
 
   async create(input) {

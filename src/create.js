@@ -1,7 +1,6 @@
 
-const permute = require('@lancejpollard/configured-quadratic-residue-prng.js')
 const CONFIG = require('./config')
-const reserveIdList = require('./id')
+const { reserve: reserveIdList, resolve } = require('./id')
 const {
   getRandomBetween: getRandomBigIntegerBetween,
 } = require('./biginteger')
@@ -70,31 +69,40 @@ async function createChunkShardTable(knex) {
 }
 
 function getRandomSalt() {
-  return String(getRandomBigIntegerBetween(1000000000000n, 9223372036854775807n))
+  return getRandomBigIntegerBetween(1000000000000n, 9223372036854775807n)
 }
 
 async function createInitialChunkShardRecord(knex, {
-
-}, {
   organizationId,
   typeId,
+  idSalt,
   chunkId,
+  chunkIdSalt,
   shardUrl = null,
   idSize = 4
 }) {
-  const idSalt = getRandomSalt()
-  const chunkIdSalt = getRandomSalt()
+  if (idSalt == null) {
+    idSalt = getRandomSalt()
+  }
+  if (chunkIdSalt == null) {
+    chunkIdSalt = getRandomSalt()
+  }
 
-  await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
+  const [ record ] = await knex(CONFIG.CHUNK_SHARD_TABLE_NAME)
+    .returning(['chunk_id', 'id_salt'])
     .insert({
       organization_id: organizationId,
       type_id: typeId,
       chunk_id: chunkId,
       chunk_id_salt: chunkIdSalt,
       shard_url: shardUrl,
-      id_salt: newIdSalt,
+      id_salt: idSalt,
       id_size: idSize,
     })
+
+  record.chunk_id = resolve(BigInt(record.chunk_id), chunkIdSalt, 8)
+
+  return record
 }
 
 /**
@@ -120,59 +128,165 @@ async function createEachInitialChunkShardRecord(knex) {
   const typeSalt = getRandomSalt()
   const propertySalt = getRandomSalt()
   const propertyTypeSalt = getRandomSalt()
-  const organizationId = permute(0, organizationSalt, 8)
+  const organizationId = resolve(0n, organizationSalt, 8)
 
-  const typeId = permute(0, typeSalt, 4)
-  const propertyTypeId = permute(1, typeSalt, 4)
-  const propertyTypeTypeId = permute(2, typeSalt, 4)
-  const organizationTypeId = permute(3, typeSalt, 4)
+  const typeId = resolve(0n, typeSalt, 4)
+  const propertyTypeId = resolve(1n, typeSalt, 4)
+  const propertyTypeTypeId = resolve(2n, typeSalt, 4)
+  const organizationTypeId = resolve(3n, typeSalt, 4)
 
   CONFIG.DEFAULT_ORGANIZATION_ID = organizationId
-  CONFIG.addType('type', typeId)
-  CONFIG.addType('property', propertyTypeId)
-  CONFIG.addType('propertyType', propertyTypeTypeId)
-  CONFIG.addType('organization', organizationTypeId)
 
   // create type
-  await createInitialChunkShardRecord(knex, {
+  let { chunk_id: typeChunkId } = await createInitialChunkShardRecord(knex, {
     organizationId,
     typeId,
+    idSalt: typeSalt,
   })
 
-  await createInitialChunkShardRecord(knex, {
+  CONFIG.UPDATE_SCHEMA({
+    type: {
+      id: typeId,
+      chunkId: typeChunkId
+    }
+  })
+
+  let { chunk_id: propertyChunkId } = await createInitialChunkShardRecord(knex, {
     organizationId,
     typeId: propertyTypeId,
+    idSalt: propertySalt,
   })
 
-  await createInitialChunkShardRecord(knex, {
+  CONFIG.UPDATE_SCHEMA({
+    property: {
+      id: propertyTypeId,
+      chunkId: propertyChunkId
+    }
+  })
+
+  let { chunk_id: propertyTypeChunkId } = await createInitialChunkShardRecord(knex, {
     organizationId,
     typeId: propertyTypeTypeId,
+    idSalt: propertyTypeSalt
   })
 
-  await createInitialChunkShardRecord(knex, {
+  CONFIG.UPDATE_SCHEMA({
+    property_type: {
+      id: propertyTypeTypeId,
+      chunkId: propertyTypeChunkId
+    }
+  })
+
+  let { chunk_id: organizationChunkId } = await createInitialChunkShardRecord(knex, {
     organizationId,
     typeId: organizationTypeId,
   })
 
-  const properties = []
-  CONFIG.eachProperty((type, name) => {
-    properties.push({ type, name })
+  CONFIG.UPDATE_SCHEMA({
+    organization: {
+      id: organizationTypeId,
+      chunkId: organizationChunkId
+    }
   })
 
-  const ids = await reserveIdList(knex, {
-    organizationId: organizationId,
-    typeId: propertyTypeId,
-    count: properties.length
-  })
+  let typeIndex = 4n
 
-  properties.forEach(({ type, name }, i) => {
-    const typeId = Config.TYPE_ID[type]
-    createTypePropertyRecord(knex, {
-      typeId,
-      propertyTypes,
-      isList
+  for (let type in CONFIG.SCHEMA) {
+    const typeDef = CONFIG.SCHEMA[type]
+    if (typeDef.id == null) {
+      let typeId = resolve(typeIndex++, typeSalt, 4)
+      let { chunk_id: chunkId } = await createInitialChunkShardRecord(knex, {
+        organizationId,
+        typeId,
+      })
+
+      CONFIG.UPDATE_SCHEMA({
+        [type]: {
+          id: typeId,
+          chunkId
+        }
+      })
+    }
+  }
+
+  for (let type in CONFIG.SCHEMA) {
+    const typeDef = CONFIG.SCHEMA[type]
+    for (let propertyName in typeDef.properties) {
+      const propertyDef = typeDef.properties[propertyName]
+
+      // property record base
+      const [propertyObjectId] = await reserveIdList(knex, {
+        organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+        typeId: propertyTypeId
+      })
+
+      propertyDef.id = propertyObjectId
+    }
+  }
+
+  for (let type in CONFIG.SCHEMA) {
+    const typeDef = CONFIG.SCHEMA[type]
+    for (let propertyName in typeDef.properties) {
+      const propertyDef = typeDef.properties[propertyName]
+
+      // property belongs to type
+      await createObjectBindingRecord(knex, {
+        organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+        typeId: CONFIG.getIdForType('property'),
+        objectId: propertyDef.id,
+        propertyId: CONFIG.getIdForProperty('property', 'type_id'),
+        valueOrganizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+        valueTypeId: CONFIG.getIdForType('type'),
+        valueObjectId: typeDef.id,
+      })
+
+      // create property.name
+      await createStringValueRecord(knex, {
+        organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+        typeId: CONFIG.getIdForType('property'),
+        objectId: propertyDef.id,
+        propertyId: CONFIG.getIdForProperty('property', 'name'),
+        value: propertyName,
+      })
+
+      // create property.isList
+      await createBooleanValueRecord(knex, {
+        organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+        typeId: CONFIG.getIdForType('property'),
+        objectId: propertyDef.id,
+        propertyId: CONFIG.getIdForProperty('property', 'is_list'),
+        value: !!propertyDef.isList,
+      })
+
+      // property type
+      for (let propertyTypeName in propertyDef.type) {
+        const propertyTypeDef = propertyDef.type[propertyTypeName]
+
+        // propertyType record
+        const [propertyTypeObjectId] = await reserveIdList(knex, {
+          organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+          typeId: CONFIG.getIdForType('property_type'),
+        })
+
+        // propertyType belongs to property
+        await createObjectBindingRecord(knex, {
+          organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+          typeId: CONFIG.getIdForType('property_type'),
+          objectId: propertyTypeObjectId,
+          propertyId: CONFIG.getIdForProperty('property_type', 'property_id'),
+          valueOrganizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
+          valueTypeId: CONFIG.getIdForType('property'),
+          valueObjectId: propertyDef.id,
+        })
+
+        propertyTypeDef.id = propertyTypeObjectId
+      }
+    }
+
+    CONFIG.UPDATE_SCHEMA({
+      [type]: typeDef
     })
-  })
+  }
 }
 
 async function createTypeChunkShardRecord(knex) {
@@ -274,91 +388,7 @@ async function createTypePropertyType(knex) {
  */
 
 async function createTypeTypeSchema(knex) {
-  await createTypeType(knex)
-  await createTypeProperty(knex)
-  await createTypePropertyType(knex)
-
-  // create type properties
-  await createEachTypePropertyRecord(knex, {
-    objectId: CONFIG.TYPE_ID.type,
-    properties: [
-      {
-        name: 'name',
-        propertyTypes: [{ name: 'string' }],
-      },
-      {
-        name: 'slug',
-        propertyTypes: [{ name: 'string' }],
-      },
-      {
-        name: 'properties',
-        propertyTypes: [{ name: 'property' }],
-        isList: true
-      }
-    ]
-  })
-
-  // create property properties
-  await createEachTypePropertyRecord(knex, {
-    objectId: CONFIG.TYPE_ID.property,
-    properties: [
-      {
-        name: 'name',
-        propertyTypes: [{ name: 'string' }],
-      },
-      {
-        name: 'slug',
-        propertyTypes: [{ name: 'string' }],
-      },
-      {
-        name: 'propertyTypes',
-        propertyTypes: [{ name: 'type' }],
-        isList: true
-      },
-      {
-        name: 'isList',
-        propertyTypes: [{ name: 'boolean' }],
-      }
-    ]
-  })
-}
-
-async function createTypeAgentRecord(knex) {
-  await createType(knex, {
-    name: 'agent',
-    properties: [
-
-    ]
-  })
-}
-
-/**
- * Create organization.
- *
- * - slug
- * - title
- * - image
- * - logo
- */
-
-async function createTypeOrganizationRecord(knex) {
-  await createType(knex, {
-    name: 'organization',
-    properties: [
-      {
-        name: 'slug',
-        propertyTypes: [{ name: 'string' }],
-      },
-      {
-        name: 'title',
-        propertyTypes: [{ name: 'text' }],
-      },
-      {
-        name: 'image',
-        propertyTypes: [{ name: 'object_binding' }],
-      },
-    ]
-  })
+  await createEachInitialChunkShardRecord(knex)
 }
 
 async function createPropertyRecord(knex) {
@@ -647,115 +677,6 @@ async function createObjectBindingRecord(knex, {
     })
 }
 
-async function createType(knex, { name, properties = [] }) {
-  const [objectId] = await reserveIdList(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID, // main app organization
-    typeId: CONFIG.TYPE_ID.type // type: 'type'
-  })
-
-  await createChunkShardRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: objectId,
-  })
-
-  // create type.name
-  await createStringValueRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: CONFIG.TYPE_ID.type,
-    objectId,
-    propertyId: CONFIG.PROPERTY_ID.property.name, // name property on type
-    value: name
-  })
-
-  // create type.properties
-  await createEachTypePropertyRecord(knex, { objectId, properties })
-
-  // create type.title
-  // create type.description
-}
-
-async function createEachTypePropertyRecord(knex, {
-  objectId,
-  properties
-}) {
-  for (let i = 0, n = properties.length; i < n; i++) {
-    const propertyAttributeSet = properties[i]
-    await createTypePropertyRecord(knex, {
-      typeId: objectId,
-      ...propertyAttributeSet
-    })
-  }
-}
-
-async function createTypePropertyRecord(knex, {
-  typeId,
-  name,
-  propertyTypes = [],
-  isList = false,
-  defaultValue,
-  title,
-  description,
-  examples,
-}) {
-  // property record
-  const [objectId] = await reserveIdList(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID, // main app organization
-    typeId: CONFIG.TYPE_ID.property // type: 'type'
-  })
-
-  // property belongs to type
-  await createObjectBindingRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: CONFIG.TYPE_ID.property,
-    objectId,
-    propertyId: CONFIG.PROPERTY_ID.property.typeId,
-    valueOrganizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    valueTypeId: CONFIG.TYPE_ID.type,
-    valueObjectId: typeId,
-  })
-
-  // create property.name
-  await createStringValueRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: CONFIG.TYPE_ID.property,
-    objectId,
-    propertyId: CONFIG.PROPERTY_ID.property.name,
-    value: name,
-  })
-
-  // create property.propertyTypes
-  // for each property type
-  for (let i = 0, n = propertyTypes.length; i < n; i++) {
-    let propertyType = propertyTypes[i]
-
-    // propertyType record
-    const [propertyTypeObjectId] = await reserveIdList(knex, {
-      organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-      typeId: CONFIG.TYPE_ID.propertyType
-    })
-
-    // propertyType belongs to property
-    await createObjectBindingRecord(knex, {
-      organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-      typeId: CONFIG.TYPE_ID.propertyType,
-      objectId: propertyTypeObjectId,
-      propertyId: CONFIG.PROPERTY_ID.propertyType.propertyId,
-      valueOrganizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-      valueTypeId: CONFIG.TYPE_ID.property,
-      valueObjectId: objectId,
-    })
-  }
-
-  // create property.isList
-  await createBooleanValueRecord(knex, {
-    organizationId: CONFIG.DEFAULT_ORGANIZATION_ID,
-    typeId: CONFIG.TYPE_ID.property,
-    objectId,
-    propertyId: CONFIG.PROPERTY_ID.property.isList,
-    value: isList,
-  })
-}
-
 async function createRecord() {
 
 }
@@ -771,7 +692,6 @@ module.exports = {
   createChunkShardTable,
   createInitialChunkShardShardRecord,
   createTypeTypeSchema,
-  createTypeOrganizationRecord,
   createRecord,
   createRecordList,
 }
