@@ -365,6 +365,8 @@ All of the schema data is contained in the primary node.
 
 You have to have permission to edit the organization or specific records within the organization to edit.
 
+[Permissions](https://cazzer.medium.com/designing-the-most-performant-row-level-security-strategy-in-postgres-a06084f31945) on a per-record level idea. [More info](https://cloud.google.com/bigquery/docs/row-level-security-intro).
+
 ### Insertion
 
 Every few records inserted, it checks the database size to see if it is close to MAX in size. Once it is close to MAX in size, it spawns off another shard.

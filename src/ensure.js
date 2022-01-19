@@ -5,7 +5,7 @@ const {
   createChunkShardShardTable,
   createChunkShardTable,
   createInitialChunkShardShardRecord,
-  createTypeTypeRecord,
+  createTypeTypeSchema,
   createTypeOrganizationRecord,
 } = require('./create')
 
@@ -63,7 +63,7 @@ async function ensureEachPropertyTable(knex) {
 }
 
 async function ensureTypeTypeRecord(knex) {
-  await createTypeTypeRecord(knex)
+  await createTypeTypeSchema(knex)
 }
 
 async function ensureTypeOrganizationRecord(knex) {
