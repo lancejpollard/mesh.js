@@ -573,8 +573,10 @@ This is the last policy template defined, but expanded to show how it might look
   access: [
     {
       aspect: {
-        organization: '[source/organization/id]',
-        type: null
+        keys: [
+          { name: 'organization', value: '[source/organization/id]' },
+          { name: 'type', value: null },
+        ]
       },
       action: [
         {
