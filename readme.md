@@ -379,11 +379,11 @@ Every few records inserted, it checks the database size to see if it is close to
 
 ```js
 {
-  object: [
+  access: [
     {
-      aspect: 'org_id/type_id/object_id/chunk_id',
+      aspect: '/org_id/type_id/chunk_id/object_id',
       action: ['update'],
-      object: [
+      access: [
         {
           aspect: 'fielda',
           action: ['reject']
@@ -402,10 +402,10 @@ Every few records inserted, it checks the database size to see if it is close to
 
 ```js
 {
-  object: [
+  access: [
     {
-      aspect: 'specific_type',
-      object: [
+      aspect: '/*/specific_type',
+      access: [
         {
           aspect: 'field1',
         }
@@ -419,33 +419,31 @@ Every few records inserted, it checks the database size to see if it is close to
 
 ```js
 {
-  object: [
+  access: [
     {
-      aspect: 'specific_type',
+      aspect: '/*/specific_type_id',
       action: ['remove'],
-      object: [
+      access: [
         {
-          aspect: 'field1',
+          aspect: '/field1',
           action: ['select', 'update']
         }
       ]
     }
   ],
   review: {
-    current_agent: {
-      select: {
-        id: true
+    filter: [
+      {
+        source: '/specific_type/author/id'
+        relation: '=',
+        target: '/current_agent/id'
       }
-    },
-    specific_type: {
-      filter: [
-        {
-          source: ['author', 'id'],
-          relation: '=',
-          target: ['current_agent', 'id']
-        }
-      ],
-      select: {
+    ],
+    select: {
+      current_agent: {
+        id: true
+      },
+      specific_type: {
         author: {
           id: true
         }
@@ -459,8 +457,17 @@ Every few records inserted, it checks the database size to see if it is close to
 
 ```js
 {
-  object: [
-
+  access: [
+    {
+      aspect: '/*',
+      access: ['select'],
+      access: [
+        {
+          aspect: '/*',
+          action: ['manage']
+        }
+      ]
+    }
   ],
   review: {
     filter: [
@@ -483,6 +490,60 @@ Every few records inserted, it checks the database size to see if it is close to
           id: true
         }
       }
+    }
+  }
+}
+```
+
+### Handle All Records for an Organization
+
+```js
+{
+  source: {
+    organization: {
+      id: true
+    }
+  },
+  access: [
+    {
+      aspect: {
+        organization: {
+          id: '/source/organization/id'
+        },
+        type: {
+          id: '*'
+        }
+      },
+      action: ['manage']
+    }
+  ],
+}
+```
+
+### Override Specific Actions with Finer Detail
+
+```js
+{
+  access: [
+    {
+      aspect: '/org_id/*',
+      action: ['manage'],
+      access: [
+        {
+          revoke: true,
+          aspect: '/field1',
+          action: ['manage']
+        },
+        {
+          aspect: '/field1',
+          action: ['select']
+        }
+      ]
+    }
+  ],
+  source: {
+    organization: {
+      id: true
     }
   }
 }
