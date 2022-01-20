@@ -528,7 +528,7 @@ Every few records inserted, it checks the database size to see if it is close to
           action: ['manage']
         },
         {
-          aspect: '/field1',
+          aspect: '/field2',
           action: ['select']
         }
       ]
@@ -541,3 +541,77 @@ Every few records inserted, it checks the database size to see if it is close to
   }
 }
 ```
+
+Create a "binding" to a policy "template" with specific variables.
+
+- **policy_template**
+- **policy** (one created for each template at least, binding to variables)
+- **permit** (assiging a user to a specific policy binding)
+
+```
+agent
+  permits
+
+permit
+  agent
+  policy
+
+policy
+  binding
+  template
+
+policy_template
+  source
+```
+
+### Policy Template in Detail
+
+This is the last policy template defined, but expanded to show how it might look in the database.
+
+```js
+{
+  access: [
+    {
+      aspect: {
+        organization: '[source/organization/id]',
+        type: null
+      },
+      action: [
+        {
+          type: 3
+        }
+      ],
+      access: [
+        {
+          revoke: true,
+          aspect: {
+            property: 'field1'
+          },
+          action: [
+            {
+              type: 3
+            }
+          ]
+        },
+        {
+          aspect: {
+            property: 'field2'
+          },
+          action: [
+            {
+              type: 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  source: {
+    organization: {
+      id: true
+    }
+  }
+}
+```
+
+So then as many of the policies and templates can be loaded into memory as possible, so it works quickly.
