@@ -506,14 +506,7 @@ Every few records inserted, it checks the database size to see if it is close to
   },
   access: [
     {
-      aspect: {
-        organization: {
-          id: '/source/organization/id'
-        },
-        type: {
-          id: '*'
-        }
-      },
+      aspect: '/[source/organization/id]/*',
       action: ['manage']
     }
   ],
