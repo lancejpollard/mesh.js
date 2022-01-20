@@ -1,8 +1,9 @@
 {
-  "name": "@lancejpollard/pgdb.js",
+  "name": "@lancejpollard/weave.js",
   "version": "0.0.1",
   "dependencies": {
     "@lancejpollard/configured-quadratic-residue-prng.js": "^1.0.0",
+    "@lancejpollard/resolve-action-tree.js": "^0.0.1",
     "knex": "^0.95.15",
     "lodash": "^4.17.21",
     "pg": "^8.7.1"

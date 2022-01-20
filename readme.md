@@ -372,3 +372,118 @@ You have to have permission to edit the organization or specific records within 
 ### Insertion
 
 Every few records inserted, it checks the database size to see if it is close to MAX in size. Once it is close to MAX in size, it spawns off another shard.
+
+## Permissions, Authorization, and Access Control Lists
+
+### Handle Permissions on a Single Record
+
+```js
+{
+  object: [
+    {
+      aspect: 'org_id/type_id/object_id/chunk_id',
+      action: ['update'],
+      object: [
+        {
+          aspect: 'fielda',
+          action: ['reject']
+        },
+        {
+          aspect: 'fieldb',
+          action: ['update', 'delete']
+        }
+      ]
+    },
+  ]
+}
+```
+
+### Handle Permissions on All Records of Specific Type
+
+```js
+{
+  object: [
+    {
+      aspect: 'specific_type',
+      object: [
+        {
+          aspect: 'field1',
+        }
+      ]
+    }
+  ],
+}
+```
+
+### Handle Permissions Matching Specific Conditions
+
+```js
+{
+  object: [
+    {
+      aspect: 'specific_type',
+      action: ['remove'],
+      object: [
+        {
+          aspect: 'field1',
+          action: ['select', 'update']
+        }
+      ]
+    }
+  ],
+  review: {
+    current_agent: {
+      select: {
+        id: true
+      }
+    },
+    specific_type: {
+      filter: [
+        {
+          source: ['author', 'id'],
+          relation: '=',
+          target: ['current_agent', 'id']
+        }
+      ],
+      select: {
+        author: {
+          id: true
+        }
+      }
+    }
+  }
+}
+```
+
+### Allow User who is Group Member to Access all Records Group Owns
+
+```js
+{
+  object: [
+
+  ],
+  review: {
+    filter: [
+      {
+        source: '/current_agent/memberships/organization/id',
+        relation: '=',
+        target: '/record/owner/id'
+      }
+    ]
+    select: {
+      current_agent: {
+        memberships: {
+          organization: {
+            id: true
+          }
+        }
+      },
+      record: {
+        owner: {
+          id: true
+        }
+      }
+    }
+  }
+}
+```

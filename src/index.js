@@ -6,19 +6,19 @@ const {
 const {
   ensureCenter,
   ensureBaseSchema,
-} = require('./ensure')
+} = require('./implementation/ensure')
 const {
   createRecord,
   createRecordList,
-} = require('./create')
+} = require('./implementation/create')
 const {
   revokeCenter,
   revokeEachPropertyTable,
-} = require('./remove')
+} = require('./implementation/remove')
 const {
   selectFromRecordTable,
   selectEveryType,
-} = require('./select')
+} = require('./implementation/select')
 
 // - create central table
 // - layer to create new object table
